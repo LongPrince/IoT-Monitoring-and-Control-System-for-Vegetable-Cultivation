@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "author": "Gemini",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-dht22", "id": "dht", "top": -150, "left": -250, "attrs": {} },
+    { "type": "wokwi-potentiometer", "id": "soil_moisture", "top": 50, "left": -250, "attrs": {} },
+    { "type": "wokwi-photoresistor-sensor", "id": "ldr", "top": 150, "left": -250, "attrs": {} },
+    { "type": "board-ssd1306", "id": "oled", "top": -200, "left": 150, "attrs": {} },
+    { "type": "wokwi-servo", "id": "servo_vent", "top": -50, "left": 250, "attrs": {} },
+    { "type": "wokwi-led", "id": "led_pump", "top": 50, "left": 250, "attrs": { "color": "blue", "label": "Bơm" } },
+    { "type": "wokwi-led", "id": "led_light", "top": 150, "left": 250, "attrs": { "color": "yellow", "label": "Đèn" } },
+    { "type": "wokwi-buzzer", "id": "buzzer", "top": 200, "left": 250, "attrs": {} }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    
+    [ "dht:VCC", "esp:3V3", "red", [] ],
+    [ "dht:GND", "esp:GND", "black", [] ],
+    [ "dht:SDA", "esp:15", "green", [] ],
+    
+    [ "soil_moisture:VCC", "esp:3V3", "red", [] ],
+    [ "soil_moisture:GND", "esp:GND", "black", [] ],
+    [ "soil_moisture:SIG", "esp:34", "yellow", [] ],
+    
+    [ "ldr:VCC", "esp:3V3", "red", [] ],
+    [ "ldr:GND", "esp:GND", "black", [] ],
+    [ "ldr:AO", "esp:35", "orange", [] ],
+    
+    [ "oled:VCC", "esp:3V3", "red", [] ],
+    [ "oled:GND", "esp:GND", "black", [] ],
+    [ "oled:SDA", "esp:21", "green", [] ],
+    [ "oled:SCL", "esp:22", "yellow", [] ],
+    
+    [ "servo_vent:V+", "esp:5V", "red", [] ],
+    [ "servo_vent:GND", "esp:GND", "black", [] ],
+    [ "servo_vent:PWM", "esp:17", "orange", [] ],
+    
+    [ "led_pump:A", "esp:16", "blue", [] ],
+    [ "led_pump:C", "esp:GND", "black", [] ],
+    
+    [ "led_light:A", "esp:18", "yellow", [] ],
+    [ "led_light:C", "esp:GND", "black", [] ],
+    
+    [ "buzzer:1", "esp:19", "purple", [] ],
+    [ "buzzer:2", "esp:GND", "black", [] ]
+  ],
+  "dependencies": {}
+}
