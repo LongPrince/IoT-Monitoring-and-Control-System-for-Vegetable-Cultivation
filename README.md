@@ -70,12 +70,9 @@ III.Giải pháp điều khiển từ xa
 -- UPDATE 6/4
 -Kết nối HvMQ và cơ sở dữ liệu Firebase triển khai trên Node-RED
 + Tiến hành cấu hình CSDL Firebase trên Realtime Database 
-
- + Data_Firebase_LoaiRau.json: Chứa độ ẩm thích hợp cho từng loại rau
- + 
-+ Cài đặt thư viên cho Node-RED : 
+   + Data_Firebase_LoaiRau.json: Chứa độ ẩm thích hợp cho từng loại rau
+ + Cài đặt thư viên cho Node-RED : 
   + node-red-contrib-firebase.
   + /SmartFarm.json:  URL database để cấu hình Firebase cho Node-RED
 
-
-+ Chạy thử nghiệm và cho ra kết quả KẾT NỐI THÀNH CÔNG
+-->  Chạy thử nghiệm và cho ra kết quả KẾT NỐI THÀNH CÔNG
