@@ -1,0 +1,30 @@
+{
+  "SmartFarm": {
+    "CropsList": {
+      "cai_be_vanh": {
+        "name": "Cải Bẹ Xanh",
+        "minMoisture": 40,
+        "maxMoisture": 70
+      },
+      "rau_muong": {
+        "name": "Rau Muống",
+        "minMoisture": 60,
+        "maxMoisture": 80
+      },
+      "ca_chua": {
+        "name": "Cà Chua",
+        "minMoisture": 50,
+        "maxMoisture": 65
+      }
+    },
+    "Current_Config": {
+      "activeCrop": "cai_be_vanh",
+      "mode": "AUTO"
+    },
+    "Control": {
+      "pump": "OFF",
+      "servo": 0,
+      "led": "OFF"
+    }
+  }
+}
