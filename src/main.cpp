@@ -1,129 +1,142 @@
 #include <Arduino.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-#include <ESP32Servo.h>
-#include <DHT.h>
+#include <WiFi.h>
+#include <WiFiClientSecure.h> // 1. Thêm thư viện này cho kết nối bảo mật (Port 8883)
+#include <PubSubClient.h>
+#include <ArduinoJson.h> // Thư viện xử lý JSON
 
-// --- KHAI BÁO CHÂN ---
-#define DHT_PIN       15    
-#define SOIL_PIN      34    
-#define LDR_PIN       35    
+// Cấu hình WiFi (Mặc định của Wokwi)
+const char* ssid = "Wokwi-GUEST";
+const char* password = "";
 
-#define PUMP_PIN      16    // Bơm nước (LED Xanh)
-#define SERVO_PIN     17    // Cửa thông gió (Servo)
-#define LIGHT_PIN     18    // Đèn quang hợp (LED Vàng)
-#define BUZZER_PIN    19    // Còi
+// Cấu hình MQTT (Đổi thành broker của bạn)
+const char* mqtt_server = "0acb987148084628b41bbeed64717bab.s1.eu.hivemq.cloud";
+const char* mqtt_user   = "danglong_esp8266";
+const char* mqtt_pass   = "Long@123";
+const int mqtt_port = 8883;
 
-// --- CẤU HÌNH CẢM BIẾN & MODULE ---
-#define DHTTYPE DHT22
-DHT dht(DHT_PIN, DHTTYPE);
+// Topic giao tiếp
+const char* topic_config = "farm/config";   // Nhận cấu hình từ Node-RED
+const char* topic_status = "farm/status";   // Gửi báo cáo lên Node-RED
 
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+// 2. Đổi WiFiClient thành WiFiClientSecure
+WiFiClientSecure espClient; 
+PubSubClient client(espClient);
 
-Servo ventServo; 
+// --- CÁC BIẾN LƯU TRỮ CẤU HÌNH HIỆN TẠI ---
+String currentCrop = "Chưa có dữ liệu";
+int minMoisture = 0;
+int maxMoisture = 0;
+String currentMode = "WAIT"; // Đợi cấu hình
 
-// --- NGƯỠNG CÀI ĐẶT ---
-const int SOIL_DRY = 40;   
-const int SOIL_WET = 70;   
-const float TEMP_HOT = 32.0; 
-const float TEMP_SAFE = 29.0; 
-const int LIGHT_DARK = 2000;  
-const float TEMP_DANGER = 40.0;
+// Hàm kết nối WiFi
+void setup_wifi() {
+  delay(10);
+  Serial.println();
+  Serial.print("Đang kết nối WiFi: ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi đã kết nối thành công!");
 
-// Trạng thái hệ thống
-bool isPumpOn = false;
-bool isVentOpen = false;
-unsigned long lastReadTime = 0;
+  // 3. Bỏ qua xác thực chứng chỉ SSL (Cần thiết khi dùng HiveMQ Cloud để tránh lỗi xác thực)
+  espClient.setInsecure(); 
+}
+
+// Hàm Callback - KHI CÓ TIN NHẮN TỪ MQTT GỬI XUỐNG SẼ CHẠY VÀO ĐÂY
+void callback(char* topic, byte* payload, unsigned int length) {
+  // Chuyển byte payload thành chuỗi String
+  String messageTemp;
+  for (int i = 0; i < length; i++) {
+    messageTemp += (char)payload[i];
+  }
+  
+  Serial.println("-----------------------");
+  Serial.print("Nhận được tin nhắn từ Topic: ");
+  Serial.println(topic);
+  Serial.println("Nội dung: " + messageTemp);
+
+  // Nếu tin nhắn thuộc topic cấu hình
+  if (String(topic) == topic_config) {
+    // Khai báo bộ nhớ đệm cho ArduinoJson (khoảng 256 byte là đủ cho file nhỏ)
+    StaticJsonDocument<256> doc;
+    
+    // Phân tích chuỗi JSON
+    DeserializationError error = deserializeJson(doc, messageTemp);
+    
+    if (error) {
+      Serial.print("Lỗi đọc JSON: ");
+      Serial.println(error.c_str());
+      return;
+    }
+
+    // Bóc tách dữ liệu JSON và gán vào biến hệ thống
+    const char* cmd = doc["cmd"];
+    if (String(cmd) == "update_config") {
+      currentCrop = doc["crop"].as<String>();
+      minMoisture = doc["min"];
+      maxMoisture = doc["max"];
+      currentMode = doc["mode"].as<String>();
+
+      Serial.println(">>> CẬP NHẬT CẤU HÌNH THÀNH CÔNG <<<");
+      Serial.println("Loại rau: " + currentCrop);
+      Serial.print("Ngưỡng tưới: ");
+      Serial.print(minMoisture);
+      Serial.print("% -> ");
+      Serial.print(maxMoisture);
+      Serial.println("%");
+      Serial.println("Chế độ: " + currentMode);
+    }
+  }
+}
+
+// Hàm kết nối lại MQTT nếu bị rớt mạng
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("Đang kết nối MQTT...");
+    String clientId = "ESP32FarmClient-" + String(random(0xffff), HEX);
+    
+    // 4. Thêm mqtt_user và mqtt_pass vào hàm connect để xác thực với HiveMQ
+    if (client.connect(clientId.c_str(), mqtt_user, mqtt_pass)) {
+      Serial.println("Đã kết nối!");
+      // Đăng ký lắng nghe Topic cấu hình
+      client.subscribe(topic_config);
+      
+      // Gửi tin nhắn "hello" lên để kích hoạt Node-RED nhả cấu hình xuống
+      Serial.println("Gửi tín hiệu báo thức cho Node-RED...");
+      client.publish(topic_status, "hello");
+    } else {
+      Serial.print("Thất bại, mã lỗi=");
+      Serial.print(client.state());
+      Serial.println(" Thử lại sau 5 giây");
+      delay(5000);
+    }
+  }
+}
 
 void setup() {
   Serial.begin(115200);
-  
-  pinMode(PUMP_PIN, OUTPUT);
-  pinMode(LIGHT_PIN, OUTPUT);
-  pinMode(BUZZER_PIN, OUTPUT);
-  
-  dht.begin();
-  
-  // Khởi tạo Servo ở góc 0 độ (Đóng mái)
-  ventServo.attach(SERVO_PIN);
-  ventServo.write(0); 
-  
-  // Khởi tạo OLED
-  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Địa chỉ I2C của OLED là 0x3C
-    Serial.println("Lỗi khởi tạo màn hình OLED");
-    for(;;);
-  }
-  
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(10, 25);
-  display.print("SMART FARM SYSTEM");
-  display.display();
-  delay(2000);
+  setup_wifi();
+  client.setServer(mqtt_server, mqtt_port);
+  client.setCallback(callback); // Đăng ký hàm nhận tin nhắn
 }
 
 void loop() {
-  if (millis() - lastReadTime > 2000) {
-    lastReadTime = millis();
-    
-    // 1. ĐỌC DỮ LIỆU
-    float t = dht.readTemperature();
-    float h = dht.readHumidity();
-    int rawSoil = analogRead(SOIL_PIN);
-    int soilPercent = map(rawSoil, 0, 4095, 0, 100); 
-    int rawLight = analogRead(LDR_PIN);
-
-    if (isnan(t) || isnan(h)) return; // Bỏ qua nếu lỗi
-
-    // 2. LOGIC ĐIỀU KHIỂN
-    
-    // Bơm nước
-    if (soilPercent <= SOIL_DRY && !isPumpOn) {
-      digitalWrite(PUMP_PIN, HIGH);
-      isPumpOn = true;
-    } else if (soilPercent >= SOIL_WET && isPumpOn) {
-      digitalWrite(PUMP_PIN, LOW);
-      isPumpOn = false;
-    }
-
-    // Mở mái/Cửa thông gió (Servo)
-    if (t >= TEMP_HOT && !isVentOpen) {
-      ventServo.write(90); // Mở cửa 90 độ
-      isVentOpen = true;
-      Serial.println("Trời nóng: MỞ CỬA THÔNG GIÓ");
-    } else if (t <= TEMP_SAFE && isVentOpen) {
-      ventServo.write(0); // Đóng cửa
-      isVentOpen = false;
-      Serial.println("Nhiệt độ ổn: ĐÓNG CỬA");
-    }
-
-    // Đèn
-    digitalWrite(LIGHT_PIN, rawLight > LIGHT_DARK ? HIGH : LOW);
-
-    // Còi
-    if (t >= TEMP_DANGER) tone(BUZZER_PIN, 1000);
-    else noTone(BUZZER_PIN);
-
-    // 3. HIỂN THỊ LÊN OLED
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    
-    // In thông số
-    display.printf("Temp: %.1f C\n", t);
-    display.printf("Humi: %.1f %%\n", h);
-    display.printf("Soil: %d %%\n\n", soilPercent);
-    
-    // In trạng thái thiết bị
-    display.print("Pump: ");
-    display.println(isPumpOn ? "ON" : "OFF");
-    
-    display.print("Vent: ");
-    display.println(isVentOpen ? "OPEN (90')" : "CLOSED (0')");
-    
-    display.display();
+  if (!client.connected()) {
+    reconnect();
   }
+  client.loop();
+
+  // Ở đây bạn sẽ viết logic điều khiển Bơm, Đèn, Servo
+  // Sử dụng biến currentCrop, minMoisture, maxMoisture
+  // Ví dụ:
+  /*
+  if (currentMode == "AUTO") {
+     int soilHumi = getSoilMoisture();
+     if (soilHumi < minMoisture) { turnOnPump(); }
+     if (soilHumi >= maxMoisture) { turnOffPump(); }
+  }
+  */
 }
