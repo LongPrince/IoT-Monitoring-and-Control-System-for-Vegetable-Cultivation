@@ -28,7 +28,7 @@ II.Loigic Của Hệ Thống
 1. Các Chế độ
  Với 3 chế độ cơ bản như sau:
  + Tự động : - Chọn loại rau thích hợp để
-			 - Xác nhận và tiến hành hệ thống
+             - Xác nhận và tiến hành hệ thống
  + Thủ công: ON/OF từng thiết bị
  + Bảo trì: OFF toàn bộ hệ thống
 
@@ -70,15 +70,12 @@ III.Giải pháp điều khiển từ xa
 -- UPDATE 6/4
 -Kết nối HvMQ và cơ sở dữ liệu Firebase triển khai trên Node-RED
 + Tiến hành cấu hình CSDL Firebase trên Realtime Database 
-![alt text](image-1.png)
+
  + Data_Firebase_LoaiRau.json: Chứa độ ẩm thích hợp cho từng loại rau
  + 
 + Cài đặt thư viên cho Node-RED : 
   + node-red-contrib-firebase.
   + /SmartFarm.json:  URL database để cấu hình Firebase cho Node-RED
 
-![alt text](image-2.png)
-+ Chạy thử nghiệm và cho ra kết quả KẾT NỐI THÀNH CÔNG
-![alt text](image.png)
 
-![alt text](image-3.png)
++ Chạy thử nghiệm và cho ra kết quả KẾT NỐI THÀNH CÔNG
