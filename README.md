@@ -23,14 +23,62 @@ Mô tả: Đo nhiệt độ,độ ẩm,ánh sáng.Dựa vào số liệu đó ti
 	+ Màn hình LCD 16x2 I2C: Hiển thị trực tiếp các thông số ngay tại vườn (rất trực quan trên Wokwi).
 
 	+ ESP32 & MQTT (HiveMQ): Giữ nguyên cấu trúc kết nối WiFi và MQTT như dự án trước của bạn.
+II.Loigic Của Hệ Thống 
 
-3. Kịch bản hoạt động (Logic Control)
-Bạn có thể lập trình ESP32 chạy theo các quy tắc tự động (Auto Mode) như sau:
+1. Các Chế độ
+ Với 3 chế độ cơ bản như sau:
+ + Tự động : - Chọn loại rau thích hợp để
+			 - Xác nhận và tiến hành hệ thống
+ + Thủ công: ON/OF từng thiết bị
+ + Bảo trì: OFF toàn bộ hệ thống
 
-Tưới nước tự động: Nếu giá trị đọc từ Biến trở (độ ẩm đất) < 40% ➡️ Bật LED Xanh (Bơm nước). Khi độ ẩm > 70% ➡️ Tắt LED Xanh.
+2. Hệ thống Tưới nước (Máy bơm - LED Xanh)
+Chịu trách nhiệm giữ cho rễ cây luôn đủ nước, không bị khô héo cũng không bị ngập úng.
+- Cảm biến tham chiếu: Cảm biến độ ẩm đất (Giả lập bằng Biến trở).
+- Kịch bản:
+   + Khi đất khô (Dưới 40%): BẬT máy bơm.
+   + Khi đất ướt (Trên 70%): TẮT máy bơm.
+Trong khoảng 40% - 70%: Bơm giữ nguyên trạng thái hiện tại (Nếu đang bơm thì vẫn tiếp tục bơm cho đến khi đạt 70%, nếu đang tắt thì vẫn tắt cho đến khi tụt xuống 40%).
+- Tưới cây theo thời gian sáng sớm và chiều muộn kết hợp với kiểm tra độ ẩm
+- Tưới cây theo độ ẩm thích hợp cho từng loại rau
 
-Điều hòa nhiệt độ: Nếu DHT22 báo nhiệt độ > 32°C ➡️ Bật LED Trắng/Servo (Quạt). Nếu < 28°C ➡️ Tắt Quạt.
+3. Hệ thống Thông gió / Làm mát (Mái che - Servo)
+Chịu trách nhiệm điều hòa không khí trong nhà kính, giúp tản nhiệt khi trời nắng gắt.
+- Cảm biến tham chiếu: Cảm biến DHT22 (Đọc nhiệt độ & Độ ẩm không khí).
+- Kịch bản:
+  + Trời nóng (Nhiệt độ > 32°C): MỞ mái che (Servo quay góc 90°).
+  + Trời mát (Nhiệt độ < 29°C): ĐÓNG mái che (Servo quay góc 0°).
 
-Bù sáng: Nếu LDR báo trời tối (giá trị ánh sáng thấp) ➡️ Bật LED Vàng (Đèn quang hợp).
+Bảo vệ khi trời mưa (Độ ẩm không khí > 90%): Cưỡng chế ĐÓNG mái che bất kể nhiệt độ đang là bao nhiêu để tránh mưa hắt vào vườn.
 
-Cảnh báo an toàn: Nếu nhiệt độ vượt 40°C (nguy hiểm cho cây) ➡️ Hú còi Buzzer và gửi cảnh báo khẩn cấp lên MQTT.
+4. Hệ thống Chiếu sáng (Đèn quang hợp - LED Vàng)
+Bù đắp ánh sáng cho cây khi trời sập tối hoặc nhiều mây.
+Cảm biến tham chiếu: Quang trở LDR.
+- Kịch bản:
+Nếu trời buổi sáng:
+ + Trời tối (Giá trị LDR > 2000): BẬT đèn.
+ + Trời sáng (Giá trị LDR < 2000): TẮT đèn.
+ + Nếu trời buổi tối lấy thời gian thực để tắt đèn
+
+III.Giải pháp điều khiển từ xa
+
+- Hiển thị biểu đồ hệ thống lên web: Dotnet. App điện thoại : MQtt and Blynk IoT (hiển thị biểu đồ)
+- Gửi cảnh báo về mail
+- Điều khiển thiết bị từ xa
+- Kết nối CSDL Firebase
+
+-- UPDATE 6/4
+-Kết nối HvMQ và cơ sở dữ liệu Firebase triển khai trên Node-RED
++ Tiến hành cấu hình CSDL Firebase trên Realtime Database 
+![alt text](image-1.png)
+ + Data_Firebase_LoaiRau.json: Chứa độ ẩm thích hợp cho từng loại rau
+ + 
++ Cài đặt thư viên cho Node-RED : 
+  + node-red-contrib-firebase.
+  + /SmartFarm.json:  URL database để cấu hình Firebase cho Node-RED
+
+![alt text](image-2.png)
++ Chạy thử nghiệm và cho ra kết quả KẾT NỐI THÀNH CÔNG
+![alt text](image.png)
+
+![alt text](image-3.png)
