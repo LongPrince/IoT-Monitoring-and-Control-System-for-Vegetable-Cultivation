@@ -9,9 +9,9 @@ const char* ssid = "Wokwi-GUEST";
 const char* password = "";
 
 // Cấu hình MQTT (Đổi thành broker của bạn)
-const char* mqtt_server = "0acb987148084628b41bbeed64717bab.s1.eu.hivemq.cloud";
-const char* mqtt_user   = "danglong_esp8266";
-const char* mqtt_pass   = "Long@123";
+const char* mqtt_server = "*";
+const char* mqtt_user   = "*";
+const char* mqtt_pass   = "*";
 const int mqtt_port = 8883;
 
 // Topic giao tiếp
