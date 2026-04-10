@@ -1,0 +1,41 @@
+{
+  "SmartFarm": {
+    "Alerts": {
+      "isCritical": false,
+      "status": "Bình thường"
+    },
+    "Control": {
+      "light": "OFF",
+      "pump": "OFF",
+      "roof": "OPEN"
+    },
+    "CropsList": {
+      "ca_chua": {
+        "maxMoisture": 65,
+        "minMoisture": 50,
+        "name": "Ca Chua"
+      },
+      "cai_be_xanh": {
+        "maxMoisture": 70,
+        "minMoisture": 40,
+        "name": "Cải Bẹ Xanh"
+      },
+      "rau_muong": {
+        "maxMoisture": 80,
+        "minMoisture": 60,
+        "name": "Rau Muống"
+      }
+    },
+    "Current_Config": {
+      "activeCrop": "cai_be_xanh",
+      "mode": "AUTO"
+    },
+    "Sensors": {
+      "humi": 49.5,
+      "lastUpdate": "2026-04-10 09:20:29",
+      "ldr": 1001,
+      "soil": 90,
+      "temp": 32
+    }
+  }
+}

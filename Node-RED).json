@@ -1,0 +1,27 @@
+[
+    {
+        "id": "b2b76b10ba5a0e6c",
+        "type": "e-mail",
+        "z": "smart_farm_pro_tab",
+        "server": "smtp.gmail.com",
+        "port": "465",
+        "authtype": "BASIC",
+        "saslformat": false,
+        "token": "oauth2Response.access_token",
+        "secure": true,
+        "tls": true,
+        "name": "22t1020659@husc.edu.vn",
+        "dname": "Gửi Cảnh Báo",
+        "x": 1060,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "620c3a106c37fc4e",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-node-email": "5.2.1"
+        }
+    }
+]
