@@ -1,5 +1,94 @@
 [
     {
+        "id": "smart_farm_pro_tab",
+        "type": "tab",
+        "label": "IoT Smart Farm Pro (Fixed)",
+        "disabled": false,
+        "info": "Hệ thống quản lý vườn rau thông minh toàn diện"
+    },
+    {
+        "id": "0f844d93fc375ac7",
+        "type": "mqtt in",
+        "z": "smart_farm_pro_tab",
+        "name": "MQTT: farm/sensors",
+        "topic": "farm/sensors",
+        "qos": "0",
+        "datatype": "json",
+        "broker": "mqtt_broker_config",
+        "nl": false,
+        "rap": false,
+        "inputs": 0,
+        "x": 330,
+        "y": 640,
+        "wires": [
+            [
+                "7b63eea8a0f9b0eb"
+            ]
+        ]
+    },
+    {
+        "id": "7b63eea8a0f9b0eb",
+        "type": "function",
+        "z": "smart_farm_pro_tab",
+        "name": "Tách Luồng Dữ Liệu ESP32",
+        "func": "let p = msg.payload;\nlet d = new Date();\nd.setHours(d.getHours() + 7);\nlet ts = d.toISOString().replace('T', ' ').substring(0, 19);\n\n// 1. Nhánh Sensors\nlet msgSensors = {\n    payload: { temp: p.temp, humi: p.humi, soil: p.soil, ldr: p.ldr, lastUpdate: ts }\n};\n\n// 2. Nhánh Alerts\nlet msgAlerts = {\n    payload: { status: p.alert, isCritical: (p.alert !== \"Bình thường\") }\n};\n\n// 3. Nhánh Control (Cập nhật thực tế từ ESP32)\nlet msgControl = {\n    payload: { pump: p.pump, light: p.light, roof: p.roof }\n};\n\n// --- UI DASHBOARD ---\nlet uiTemp = { payload: p.temp };\nlet uiHumi = { payload: p.humi };\nlet uiSoil = { payload: p.soil };\nlet uiAlert = { payload: p.alert };\nlet uiStatus = { payload: `Bơm: ${p.pump} | Đèn: ${p.light} | Mái: ${p.roof}` };\n\nreturn [msgSensors, msgAlerts, msgControl, uiTemp, uiHumi, uiSoil, uiAlert, uiStatus];",
+        "outputs": 8,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 560,
+        "y": 640,
+        "wires": [
+            [
+                "8ebf6997d8bf8e85"
+            ],
+            [
+                "c2be3728ddbca487",
+                "b0979a963091e4cf"
+            ],
+            [
+                "aeb43ab581f5b7b7"
+            ],
+            [
+                "82b0c9bdea42a306"
+            ],
+            [
+                "891739d677e67e9c"
+            ],
+            [
+                "8d32f57a43eed06a"
+            ],
+            [
+                "332344dab004bf7c"
+            ],
+            [
+                "f679dc0f9fc2fc84"
+            ]
+        ]
+    },
+    {
+        "id": "b0979a963091e4cf",
+        "type": "function",
+        "z": "smart_farm_pro_tab",
+        "name": "Lọc Spam & Soạn Email",
+        "func": "let isCritical = msg.payload.isCritical;\nlet status = msg.payload.status;\nlet lastAlert = flow.get(\"lastEmailAlert\") || \"\";\n\n// Nếu có lỗi VÀ lỗi này khác với lỗi vừa gửi mail (chống spam)\nif (isCritical && status !== lastAlert) {\n    flow.set(\"lastEmailAlert\", status); // Lưu lại lịch sử\n    \n    // Soạn nội dung email\n    msg.topic = \"🚨 CẢNH BÁO SMART FARM: \" + status;\n    msg.payload = \"Hệ thống phát hiện sự cố trên Node-RED.\\n\\n\" +\n                  \"📌 Vấn đề: \" + status + \"\\n\" +\n                  \"⏱️ Thời gian: \" + new Date().toLocaleString() + \"\\n\\n\" +\n                  \"Vui lòng kiểm tra lại thiết bị ngay!\";\n    return msg;\n}\n\n// Nếu hệ thống đã Bình thường trở lại, xóa bộ nhớ tạm để sẵn sàng cho đợt lỗi tiếp theo\nif (!isCritical) {\n    flow.set(\"lastEmailAlert\", \"\");\n}\n\nreturn null;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 840,
+        "y": 500,
+        "wires": [
+            [
+                "b2b76b10ba5a0e6c"
+            ]
+        ]
+    },
+    {
         "id": "b2b76b10ba5a0e6c",
         "type": "e-mail",
         "z": "smart_farm_pro_tab",
@@ -10,18 +99,530 @@
         "token": "oauth2Response.access_token",
         "secure": true,
         "tls": true,
-        "name": "22t1020659@husc.edu.vn",
+        "name": "nhập gmail : ***@gmail.com",
         "dname": "Gửi Cảnh Báo",
         "x": 1060,
         "y": 500,
         "wires": []
     },
     {
-        "id": "620c3a106c37fc4e",
+        "id": "8ebf6997d8bf8e85",
+        "type": "http request",
+        "z": "smart_farm_pro_tab",
+        "name": "PUT Sensors",
+        "method": "PUT",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "https://smartfarm-nodered-default-rtdb.asia-southeast1.firebasedatabase.app/SmartFarm/Sensors.json?auth=M8vLtquP0rnaAy834n6b4jBY2wMhUz5VjKZxNQDL",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 830,
+        "y": 540,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "c2be3728ddbca487",
+        "type": "http request",
+        "z": "smart_farm_pro_tab",
+        "name": "PUT Alerts",
+        "method": "PUT",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "https://smartfarm-nodered-default-rtdb.asia-southeast1.firebasedatabase.app/SmartFarm/Alerts.json?auth=M8vLtquP0rnaAy834n6b4jBY2wMhUz5VjKZxNQDL",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "senderr": false,
+        "x": 830,
+        "y": 580,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "aeb43ab581f5b7b7",
+        "type": "http request",
+        "z": "smart_farm_pro_tab",
+        "name": "PUT Control",
+        "method": "PUT",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "https://smartfarm-nodered-default-rtdb.asia-southeast1.firebasedatabase.app/SmartFarm/Control.json?auth=M8vLtquP0rnaAy834n6b4jBY2wMhUz5VjKZxNQDL",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 830,
+        "y": 620,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "82b0c9bdea42a306",
+        "type": "ui_gauge",
+        "z": "smart_farm_pro_tab",
+        "name": "",
+        "group": "6f011b75e8432afe",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "Nhiệt Độ (°C)",
+        "label": "°C",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "50",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "x": 830,
+        "y": 660,
+        "wires": []
+    },
+    {
+        "id": "891739d677e67e9c",
+        "type": "ui_gauge",
+        "z": "smart_farm_pro_tab",
+        "name": "",
+        "group": "6f011b75e8432afe",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "Độ Ẩm Không Khí (%)",
+        "label": "%",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "100",
+        "colors": [
+            "#ca3838",
+            "#00b500",
+            "#0099ff"
+        ],
+        "x": 850,
+        "y": 700,
+        "wires": []
+    },
+    {
+        "id": "8d32f57a43eed06a",
+        "type": "ui_gauge",
+        "z": "smart_farm_pro_tab",
+        "name": "",
+        "group": "6f011b75e8432afe",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "Độ Ẩm Đất (%)",
+        "label": "%",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "100",
+        "colors": [
+            "#ca3838",
+            "#e6e600",
+            "#0099ff"
+        ],
+        "x": 840,
+        "y": 740,
+        "wires": []
+    },
+    {
+        "id": "332344dab004bf7c",
+        "type": "ui_text",
+        "z": "smart_farm_pro_tab",
+        "group": "6f011b75e8432afe",
+        "order": 4,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "Cảnh báo:",
+        "format": "<font color='red'><b>{{msg.payload}}</b></font>",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": "",
+        "color": "#000000",
+        "x": 840,
+        "y": 780,
+        "wires": []
+    },
+    {
+        "id": "f679dc0f9fc2fc84",
+        "type": "ui_text",
+        "z": "smart_farm_pro_tab",
+        "group": "6f011b75e8432afe",
+        "order": 5,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "Trạng thái:",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "x": 840,
+        "y": 820,
+        "wires": []
+    },
+    {
+        "id": "968e9403f06fc262",
+        "type": "ui_dropdown",
+        "z": "smart_farm_pro_tab",
+        "name": "Chọn Chế Độ",
+        "label": "Chế Độ",
+        "group": "963c17cb848fe64e",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "multiple": false,
+        "options": [
+            {
+                "label": "---- Chọn Chế Độ ----",
+                "value": "WAIT",
+                "type": "str"
+            },
+            {
+                "label": "Tự động (AUTO)",
+                "value": "AUTO",
+                "type": "str"
+            },
+            {
+                "label": "Thủ công (MANUAL)",
+                "value": "MANUAL",
+                "type": "str"
+            },
+            {
+                "label": "Bảo trì (MAINT.)",
+                "value": "MAINT.",
+                "type": "str"
+            }
+        ],
+        "payload": "",
+        "topic": "mode",
+        "topicType": "str",
+        "x": 330,
+        "y": 920,
+        "wires": [
+            [
+                "e087ae98773ed4e1"
+            ]
+        ]
+    },
+    {
+        "id": "3cd23161369af0e8",
+        "type": "ui_dropdown",
+        "z": "smart_farm_pro_tab",
+        "name": "Chọn Loại Rau",
+        "label": "Loại Rau",
+        "group": "963c17cb848fe64e",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "multiple": false,
+        "options": [
+            {
+                "label": "---- Chọn Loại Rau ----",
+                "value": "NONE",
+                "type": "str"
+            },
+            {
+                "label": "Cà Chua (50-65%)",
+                "value": "ca_chua",
+                "type": "str"
+            },
+            {
+                "label": "Cải Bẹ Xanh (40-70%)",
+                "value": "cai_be_xanh",
+                "type": "str"
+            },
+            {
+                "label": "Rau Muống (60-80%)",
+                "value": "rau_muong",
+                "type": "str"
+            }
+        ],
+        "payload": "",
+        "topic": "crop",
+        "topicType": "str",
+        "x": 340,
+        "y": 980,
+        "wires": [
+            [
+                "e087ae98773ed4e1"
+            ]
+        ]
+    },
+    {
+        "id": "e087ae98773ed4e1",
+        "type": "function",
+        "z": "smart_farm_pro_tab",
+        "name": "Xử lý Config (Có Reset Dropdown)",
+        "func": "if (msg.topic === \"mode\") flow.set(\"mode\", msg.payload);\nif (msg.topic === \"crop\") flow.set(\"cropKey\", msg.payload);\n\nlet mode = flow.get(\"mode\");\nlet cropKey = flow.get(\"cropKey\");\n\n// NẾU CHỌN \"----\" HOẶC CHƯA CHỌN: ĐƯA HỆ THỐNG VỀ CHẾ ĐỘ CHỜ (WAIT)\nif (mode === \"WAIT\" || cropKey === \"NONE\" || !mode || !cropKey) {\n    let msgMqtt = {\n        payload: {\n            cmd: \"update_config\",\n            mode: \"WAIT\",\n            crop: \"Waiting...\",\n            min: 0,\n            max: 0\n        }\n    };\n    let msgFirebase = {\n        payload: {\n            activeCrop: \"Chưa chọn\",\n            mode: \"WAIT\"\n        }\n    };\n    return [msgMqtt, msgFirebase];\n}\n\n// Nếu đã chọn đầy đủ thông tin hợp lệ:\nlet cropsDB = {\n   \"ca_chua\": { name: \"Ca Chua\", min: 50, max: 65 },\n   \"cai_be_xanh\": { name: \"Cải Bẹ Xanh\", min: 40, max: 70 },\n   \"rau_muong\": { name: \"Rau Muống\", min: 60, max: 80 }\n};\nlet c = cropsDB[cropKey];\n\nlet msgMqtt = {\n    payload: {\n        cmd: \"update_config\",\n        mode: mode,\n        crop: c.name,\n        min: c.min,\n        max: c.max\n    }\n};\nlet msgFirebase = {\n    payload: { activeCrop: cropKey, mode: mode }\n};\n\nreturn [msgMqtt, msgFirebase];",
+        "outputs": 2,
+        "x": 580,
+        "y": 940,
+        "wires": [
+            [
+                "27cacdb995d0390b"
+            ],
+            [
+                "e74880bf340c5cf7"
+            ]
+        ]
+    },
+    {
+        "id": "27cacdb995d0390b",
+        "type": "mqtt out",
+        "z": "smart_farm_pro_tab",
+        "name": "MQTT: farm/config",
+        "topic": "farm/config",
+        "qos": "0",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "mqtt_broker_config",
+        "x": 830,
+        "y": 900,
+        "wires": []
+    },
+    {
+        "id": "e74880bf340c5cf7",
+        "type": "http request",
+        "z": "smart_farm_pro_tab",
+        "name": "PUT Current_Config",
+        "method": "PUT",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "https://smartfarm-nodered-default-rtdb.asia-southeast1.firebasedatabase.app/SmartFarm/Current_Config.json?auth=M8vLtquP0rnaAy834n6b4jBY2wMhUz5VjKZxNQDL",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "senderr": false,
+        "x": 850,
+        "y": 980,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "5866e46c392fd933",
+        "type": "ui_switch",
+        "z": "smart_farm_pro_tab",
+        "name": "Bơm",
+        "label": "Máy Bơm Nước",
+        "group": "bbc92365bf70edfe",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "decouple": "false",
+        "topic": "pump",
+        "topicType": "str",
+        "onvalue": "true",
+        "onvalueType": "bool",
+        "offvalue": "false",
+        "offvalueType": "bool",
+        "x": 310,
+        "y": 1080,
+        "wires": [
+            [
+                "24abb7115029c420"
+            ]
+        ]
+    },
+    {
+        "id": "8a6969f0b84c2930",
+        "type": "ui_switch",
+        "z": "smart_farm_pro_tab",
+        "name": "Đèn",
+        "label": "Đèn Quang Hợp",
+        "group": "bbc92365bf70edfe",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "decouple": "false",
+        "topic": "light",
+        "topicType": "str",
+        "onvalue": "true",
+        "onvalueType": "bool",
+        "offvalue": "false",
+        "offvalueType": "bool",
+        "x": 310,
+        "y": 1120,
+        "wires": [
+            [
+                "24abb7115029c420"
+            ]
+        ]
+    },
+    {
+        "id": "2e5b52ce4583fc3d",
+        "type": "ui_switch",
+        "z": "smart_farm_pro_tab",
+        "name": "Mái",
+        "label": "Mái Che / Quạt",
+        "group": "bbc92365bf70edfe",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "decouple": "false",
+        "topic": "roof",
+        "topicType": "str",
+        "onvalue": "true",
+        "onvalueType": "bool",
+        "offvalue": "false",
+        "offvalueType": "bool",
+        "x": 310,
+        "y": 1160,
+        "wires": [
+            [
+                "24abb7115029c420"
+            ]
+        ]
+    },
+    {
+        "id": "24abb7115029c420",
+        "type": "function",
+        "z": "smart_farm_pro_tab",
+        "name": "Đóng gói Lệnh Thủ Công",
+        "func": "flow.set(\"manual_\" + msg.topic, msg.payload);\n\nif (flow.get(\"mode\") === \"MANUAL\") {\n    let p = flow.get(\"manual_pump\") ? \"ON\" : \"OFF\";\n    let l = flow.get(\"manual_light\") ? \"ON\" : \"OFF\";\n    let r = flow.get(\"manual_roof\") ? \"OPEN\" : \"CLOSED\";\n\n    let msgMqtt = {\n        payload: { cmd: \"control\", pump: p, light: l, roof: r }\n    };\n    let msgFbControl = {\n        payload: { pump: p, light: l, roof: r }\n    };\n    return [msgMqtt, msgFbControl];\n}\nreturn [null, null];",
+        "outputs": 2,
+        "x": 570,
+        "y": 1120,
+        "wires": [
+            [
+                "de71a1c060fe6603"
+            ],
+            [
+                "7c5d08435aa65052"
+            ]
+        ]
+    },
+    {
+        "id": "de71a1c060fe6603",
+        "type": "mqtt out",
+        "z": "smart_farm_pro_tab",
+        "name": "MQTT: farm/manual",
+        "topic": "farm/manual",
+        "qos": "0",
+        "broker": "mqtt_broker_config",
+        "x": 830,
+        "y": 1080,
+        "wires": []
+    },
+    {
+        "id": "7c5d08435aa65052",
+        "type": "http request",
+        "z": "smart_farm_pro_tab",
+        "name": "PUT Control (Ghi đè)",
+        "method": "PUT",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "https://smartfarm-nodered-default-rtdb.asia-southeast1.firebasedatabase.app/SmartFarm/Control.json?auth=M8vLtquP0rnaAy834n6b4jBY2wMhUz5VjKZxNQDL",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 850,
+        "y": 1160,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "mqtt_broker_config",
+        "type": "mqtt-broker",
+        "name": "HiveMQ Cloud",
+        "broker": "0acb987148084628b41bbeed64717bab.s1.eu.hivemq.cloud",
+        "port": "8883",
+        "tls": "",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": true,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "6f011b75e8432afe",
+        "type": "ui_group",
+        "name": "📊 Giám Sát Môi Trường",
+        "tab": "18717bd5c92a01b5",
+        "order": 1,
+        "disp": true,
+        "width": "6"
+    },
+    {
+        "id": "963c17cb848fe64e",
+        "type": "ui_group",
+        "name": "⚙️ Cấu Hình Hệ Thống",
+        "tab": "18717bd5c92a01b5",
+        "order": 2,
+        "disp": true,
+        "width": "6"
+    },
+    {
+        "id": "bbc92365bf70edfe",
+        "type": "ui_group",
+        "name": "🕹️ Điều Khiển Thủ Công",
+        "tab": "18717bd5c92a01b5",
+        "order": 3,
+        "disp": true,
+        "width": "6"
+    },
+    {
+        "id": "18717bd5c92a01b5",
+        "type": "ui_tab",
+        "name": "Smart Farm Dashboard",
+        "icon": "dashboard",
+        "order": 1
+    },
+    {
+        "id": "875fe3b258f5b292",
         "type": "global-config",
         "env": [],
         "modules": {
-            "node-red-node-email": "5.2.1"
+            "node-red-node-email": "5.2.1",
+            "node-red-dashboard": "3.6.6"
         }
     }
 ]
